@@ -62,7 +62,9 @@ async def create_transaction(transaction: Transaction):
     try:
         transaction_dict = transaction.dict()
         db.transactions.insert_one(transaction_dict)
-        return {"message": "Transaction created successfully", "transaction": transaction_dict}
+        # Return the transaction without MongoDB's _id field
+        created_transaction = db.transactions.find_one({"id": transaction_dict["id"]}, {"_id": 0})
+        return {"message": "Transaction created successfully", "transaction": created_transaction}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
