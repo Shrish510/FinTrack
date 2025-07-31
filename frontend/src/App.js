@@ -59,6 +59,13 @@ function App() {
     e.preventDefault();
     setLoading(true);
     
+    // Validate required fields
+    if (!formData.amount || !formData.description || !formData.category) {
+      alert('Please fill in all required fields');
+      setLoading(false);
+      return;
+    }
+    
     try {
       const response = await fetch(`${BACKEND_URL}/api/transactions`, {
         method: 'POST',
@@ -82,9 +89,13 @@ function App() {
         setIsDialogOpen(false);
         fetchTransactions();
         fetchSummary();
+      } else {
+        const errorData = await response.json();
+        alert('Error creating transaction: ' + (errorData.detail || 'Unknown error'));
       }
     } catch (error) {
       console.error('Error adding transaction:', error);
+      alert('Error adding transaction. Please try again.');
     } finally {
       setLoading(false);
     }
