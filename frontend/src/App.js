@@ -175,7 +175,7 @@ function App() {
                   
                   <div className="space-y-2">
                     <Label htmlFor="category">Category</Label>
-                    <Select onValueChange={(value) => setFormData({...formData, category: value})} required>
+                    <Select onValueChange={(value) => setFormData({...formData, category: value})} value={formData.category} required>
                       <SelectTrigger>
                         <SelectValue placeholder="Select category" />
                       </SelectTrigger>
