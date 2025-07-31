@@ -185,8 +185,14 @@ function App() {
                   </div>
                   
                   <div className="space-y-2">
-                    <Label htmlFor="category">Category</Label>
-                    <Select onValueChange={(value) => setFormData({...formData, category: value})} value={formData.category} required>
+                    <Label htmlFor="category">Category *</Label>
+                    <Select 
+                      onValueChange={(value) => {
+                        console.log('Category selected:', value);
+                        setFormData({...formData, category: value});
+                      }} 
+                      value={formData.category}
+                    >
                       <SelectTrigger>
                         <SelectValue placeholder="Select category" />
                       </SelectTrigger>
