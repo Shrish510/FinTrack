@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Wallet, TrendingUp, TrendingDown, IndianRupee, ExternalLink } from 'lucide-react';
+import { Plus, Wallet, TrendingUp, TrendingDown, IndianRupee, ExternalLink, Smartphone, Zap, MessageSquare, Settings } from 'lucide-react';
 import { Button } from './components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './components/ui/card';
 import { Input } from './components/ui/input';
@@ -8,11 +8,33 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { Badge } from './components/ui/badge';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from './components/ui/dialog';
 import { Textarea } from './components/ui/textarea';
+import { Switch } from './components/ui/switch';
 import './App.css';
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL || 'http://localhost:8001';
 
 const CATEGORIES = ['Food', 'Transport', 'Bills', 'Shopping', 'Income'];
+
+const PAYMENT_SERVICES = {
+  swiggy: {
+    name: 'Swiggy',
+    url: 'https://www.swiggy.com',
+    color: '#fc8019',
+    icon: '🍔'
+  },
+  zomato: {
+    name: 'Zomato',
+    url: 'https://www.zomato.com',
+    color: '#e23744',
+    icon: '🍕'
+  },
+  gpay: {
+    name: 'Google Pay',
+    url: 'https://pay.google.com',
+    color: '#4285f4',
+    icon: '💳'
+  }
+};
 
 function App() {
   const [transactions, setTransactions] = useState([]);
@@ -23,6 +45,8 @@ function App() {
     category_breakdown: {}
   });
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [isSMSDialogOpen, setIsSMSDialogOpen] = useState(false);
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [formData, setFormData] = useState({
     amount: '',
     description: '',
@@ -30,7 +54,13 @@ function App() {
     category: '',
     type: 'expense'
   });
+  const [smsData, setSmsData] = useState({
+    message: '',
+    sender: ''
+  });
+  const [autoSync, setAutoSync] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [smsLoading, setSmsLoading] = useState(false);
 
   // Fetch transactions
   const fetchTransactions = async () => {
@@ -51,6 +81,61 @@ function App() {
       setSummary(data);
     } catch (error) {
       console.error('Error fetching summary:', error);
+    }
+  };
+
+  // Parse SMS for transaction
+  const parseSMS = async (e) => {
+    e.preventDefault();
+    setSmsLoading(true);
+    
+    try {
+      const response = await fetch(`${BACKEND_URL}/api/parse-sms`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(smsData),
+      });
+      
+      const result = await response.json();
+      
+      if (result.success) {
+        alert('Transaction created successfully from SMS!');
+        setSmsData({ message: '', sender: '' });
+        setIsSMSDialogOpen(false);
+        fetchTransactions();
+        fetchSummary();
+      } else {
+        alert('Could not parse transaction from SMS. Please check the message format.');
+      }
+    } catch (error) {
+      console.error('Error parsing SMS:', error);
+      alert('Error parsing SMS. Please try again.');
+    } finally {
+      setSmsLoading(false);
+    }
+  };
+
+  // Handle payment service redirect
+  const handlePaymentServiceRedirect = (service) => {
+    const serviceConfig = PAYMENT_SERVICES[service];
+    if (serviceConfig) {
+      window.open(serviceConfig.url, '_blank');
+    }
+  };
+
+  // Sync payments (placeholder)
+  const syncPayments = async () => {
+    try {
+      const response = await fetch(`${BACKEND_URL}/api/sync-payments`, {
+        method: 'POST',
+      });
+      const result = await response.json();
+      alert(result.message);
+    } catch (error) {
+      console.error('Error syncing payments:', error);
+      alert('Error syncing payments. Please try again.');
     }
   };
 
@@ -122,10 +207,6 @@ function App() {
     fetchSummary();
   }, []);
 
-  const handleGooglePayRedirect = () => {
-    window.open('https://pay.google.com', '_blank');
-  };
-
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100">
       <div className="container mx-auto px-4 py-8 max-w-6xl">
@@ -136,14 +217,83 @@ function App() {
             <p className="text-slate-600">Track your income and expenses effortlessly</p>
           </div>
           <div className="flex gap-3 mt-4 md:mt-0">
-            <Button 
-              onClick={handleGooglePayRedirect}
-              variant="outline"
-              className="flex items-center gap-2"
-            >
-              <ExternalLink className="w-4 h-4" />
-              Google Pay
-            </Button>
+            <Dialog open={isSettingsOpen} onOpenChange={setIsSettingsOpen}>
+              <DialogTrigger asChild>
+                <Button variant="outline" className="flex items-center gap-2">
+                  <Settings className="w-4 h-4" />
+                  Settings
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="sm:max-w-md">
+                <DialogHeader>
+                  <DialogTitle>App Settings</DialogTitle>
+                  <DialogDescription>
+                    Configure your finance tracker preferences.
+                  </DialogDescription>
+                </DialogHeader>
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <div className="space-y-0.5">
+                      <Label className="text-base">Auto-sync Payments</Label>
+                      <p className="text-sm text-muted-foreground">
+                        Automatically sync payments from connected services
+                      </p>
+                    </div>
+                    <Switch
+                      checked={autoSync}
+                      onCheckedChange={setAutoSync}
+                    />
+                  </div>
+                  <Button onClick={syncPayments} className="w-full">
+                    <Zap className="w-4 h-4 mr-2" />
+                    Sync Now
+                  </Button>
+                </div>
+              </DialogContent>
+            </Dialog>
+            
+            <Dialog open={isSMSDialogOpen} onOpenChange={setIsSMSDialogOpen}>
+              <DialogTrigger asChild>
+                <Button variant="outline" className="flex items-center gap-2">
+                  <MessageSquare className="w-4 h-4" />
+                  Import SMS
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="sm:max-w-md">
+                <DialogHeader>
+                  <DialogTitle>Import from SMS</DialogTitle>
+                  <DialogDescription>
+                    Paste your bank SMS to automatically create a transaction.
+                  </DialogDescription>
+                </DialogHeader>
+                <form onSubmit={parseSMS} className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="sender">Sender (Optional)</Label>
+                    <Input
+                      id="sender"
+                      placeholder="e.g., SBI, HDFC, ICICI"
+                      value={smsData.sender}
+                      onChange={(e) => setSmsData({...smsData, sender: e.target.value})}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="sms-message">SMS Message *</Label>
+                    <Textarea
+                      id="sms-message"
+                      placeholder="Paste your bank SMS here..."
+                      value={smsData.message}
+                      onChange={(e) => setSmsData({...smsData, message: e.target.value})}
+                      required
+                      rows={4}
+                    />
+                  </div>
+                  <Button type="submit" disabled={smsLoading} className="w-full">
+                    {smsLoading ? 'Parsing...' : 'Parse SMS'}
+                  </Button>
+                </form>
+              </DialogContent>
+            </Dialog>
+            
             <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
               <DialogTrigger asChild>
                 <Button className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700">
@@ -239,6 +389,41 @@ function App() {
           </div>
         </div>
 
+        {/* Quick Actions */}
+        <Card className="bg-white shadow-lg border-0 mb-8">
+          <CardHeader>
+            <CardTitle className="text-xl text-slate-800 flex items-center gap-2">
+              <Smartphone className="w-5 h-5" />
+              Quick Actions
+            </CardTitle>
+            <CardDescription>Access your favorite payment services</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              {Object.entries(PAYMENT_SERVICES).map(([key, service]) => (
+                <Button
+                  key={key}
+                  onClick={() => handlePaymentServiceRedirect(key)}
+                  variant="outline"
+                  className="flex items-center gap-3 p-6 h-auto hover:shadow-md transition-all"
+                  style={{ borderColor: service.color }}
+                >
+                  <span className="text-2xl">{service.icon}</span>
+                  <div className="text-left">
+                    <div className="font-semibold" style={{ color: service.color }}>
+                      {service.name}
+                    </div>
+                    <div className="text-sm text-muted-foreground">
+                      Open {service.name}
+                    </div>
+                  </div>
+                  <ExternalLink className="w-4 h-4 ml-auto" />
+                </Button>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+
         {/* Summary Cards */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
           <Card className="bg-white shadow-lg border-0 hover:shadow-xl transition-shadow">
@@ -312,6 +497,16 @@ function App() {
                             {transaction.category}
                           </Badge>
                           <span className="text-sm text-slate-500">{transaction.date}</span>
+                          {transaction.source === 'sms' && (
+                            <Badge variant="outline" className="text-xs">
+                              SMS
+                            </Badge>
+                          )}
+                          {transaction.webhook_data && (
+                            <Badge variant="outline" className="text-xs">
+                              {transaction.webhook_data.service}
+                            </Badge>
+                          )}
                         </div>
                       </div>
                     </div>
